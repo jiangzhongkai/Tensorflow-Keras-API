@@ -12,15 +12,16 @@ import tensorflow as tf
 from tensorflow.python.ops import array_ops,math_ops,init_ops
 from typing import Tuple,List
 import numpy as np
+import os
 import pandas as pd
 
 tf.enable_eager_execution()
 
 class DATA(object):
 
-    def __init__(self):
+    def __init__(self,**kwargs):
 
-        super(self,DATA).__init__()
+        super(self,DATA).__init__(**kwargs)
 
     def __call__(self, *args, **kwargs):
         pass
@@ -49,13 +50,19 @@ class DATA(object):
         return np.array(X_DATA),np.array(Y_DATA)
 
     def get_np_dataset(self,config,cat_before_window,default_file):
-        """get """
+        """ """
         X_DATA=''
         Y_DATA=''
         return X_DATA,Y_DATA
 
 
     def get_dataset(self,config,shuffled=True,default_file=None,use_validate=True):
+
+        """split data set into train data, test data and validate data
+        Ae
+
+
+        """
 
         X_DATA,Y_DATA=self.get_np_dataset(config)
         test_size=537
@@ -106,9 +113,9 @@ class DATA(object):
             tit = test_data.make_one_shot_iterator()
             return it,tit
 
-    def get_batch_data(self,config,model,session,use_validate=True,default_file=None):
+    def get_batch_data(self,config,session,use_validate=True,default_file=None):
 
-        """get batch data to feed into the model
+        """get batch size data to feed into our model
 
         Args:
             config:object of Config
@@ -117,23 +124,45 @@ class DATA(object):
         Returns:
             batch_x_data,batch_y_data
         """
+        if  not os.path.exists(default_file):
+            raise FileNotFoundError("{0} not found".format(default_file))
+
         session.run(tf.global_variables_initializer())
         if use_validate:
 
+            #step1:get x_data and y_data
             train_data,validate_data,test_data=self.get_dataset(config,default_file=default_file,use_validate=use_validate)
 
-            # if the rest sample number is less than batch_size,we drop the rest samples
+            #step2:if the rest sample number is less than batch_size,we drop the rest samples
             train_data=train_data.apply(tf.contrib.data.batch_and_drop_remainder(config.batch_size))
             validate_data=validate_data.apply(tf.contrib.data.batch_and_drop_remainder(config.batch_size))
             test_data=test_data.apply(tf.contrib.data.batch_and_drop_remainder(config.batch_size))
 
-            #initial the iterator
+            #step3:initial the iterator
             train_iterator=train_data.make_initializable_iterator()
             val_iterator=validate_data.make_initialzable_iterator()
             test_iterator=test_data.make_initialzable_iterator()
 
-            #step by step
-        pass
+            #step4:get the next batch_size data by iterator method.
+            train_next_element=train_iterator.get_next()
+            validate_next_element=val_iterator.get_next()
+            test_next_element=test_iterator.get_next()
+
+            return train_next_element,validate_next_element,test_next_element
+        else:
+            train_data,test_data=self.get_dataset(config,default_file=default_file,use_validate=use_validate)
+
+            train_data=train_data.apply(tf.contrib.data.batch_and_drop_remainder(config.batch_size))
+            test_data=test_data.apply(tf.contrib.data.batch_and_drop_remainder(config.batch_size))
+
+            train_iterator=train_data.make_initializable_iterator()
+            test_iterator=test_data.make_initialzable_iterator()
+
+            train_next_element=train_iterator.get_next()
+            test_next_element=test_iterator.get_next()
+
+            return train_next_element,test_next_element
+
 
 
 
